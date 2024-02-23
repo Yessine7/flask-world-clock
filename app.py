@@ -1,39 +1,39 @@
 from flask import Flask, request, render_template
 import requests
+import logging
+import time
 
 app = Flask(__name__)
 
+logging.basicConfig(filename='app.log', level=logging.INFO)
 
 @app.route("/")
 def home():
-
     return render_template("home.html")
-
 
 @app.route("/search", methods=["POST"])
 def search():
-
-    # Get the search query
     query = request.form["q"]
+    start_time = time.time()
 
-    # Pass the search query to the Nominatim API to get a location
     location = requests.get(
         "https://nominatim.openstreetmap.org/search",
-        {"q": query, "format": "json", "limit": "1"},
+        params={"q": query, "format": "json", "limit": "1"},
     ).json()
 
-    # If a location is found, pass the coordinate to the Time API to get the current time
+    duration = time.time() - start_time
+    logging.info(f"Request to /search endpoint took {duration} seconds")
+
     if location:
         coordinate = [location[0]["lat"], location[0]["lon"]]
-
-        time = requests.get(
+        time_data = requests.get(
             "https://timeapi.io/api/Time/current/coordinate",
-            {"latitude": coordinate[0], "longitude": coordinate[1]},
-        )
+            params={"latitude": coordinate[0], "longitude": coordinate[1]},
+        ).json()
 
-        return render_template("success.html", location=location[0], time=time.json())
-
-    # If a location is NOT found, return the error page
+        return render_template("success.html", location=location[0], time=time_data)
     else:
-
         return render_template("fail.html")
+
+if __name__ == "__main__":
+    app.run(debug=True)
